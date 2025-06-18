@@ -2,11 +2,19 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
+import { seedDatabase } from "./seed";
 import { insertPurchaseSchema, insertAttemptSchema } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
+
+  // Check if database needs seeding and seed if empty
+  const existingExams = await storage.getAllExams();
+  if (existingExams.length === 0) {
+    console.log("Database is empty, seeding with sample data...");
+    await seedDatabase();
+  }
 
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
