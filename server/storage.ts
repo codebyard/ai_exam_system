@@ -39,6 +39,8 @@ export interface IStorage {
   getUserPurchases(userId: string): Promise<Purchase[]>;
   createPurchase(purchase: InsertPurchase): Promise<Purchase>;
   hasUserPurchased(userId: string, examId: number): Promise<boolean>;
+  getUserExamAccess(userId: string, examId: number): Promise<{ hasAccess: boolean; type: 'free' | 'premium' | null }>;
+  enrollUserForFree(userId: string, examId: number): Promise<Purchase>;
   
   // Attempt operations
   getUserAttempts(userId: string): Promise<Attempt[]>;
@@ -130,6 +132,42 @@ export class DatabaseStorage implements IStorage {
         )
       );
     return !!purchase;
+  }
+
+  async getUserExamAccess(userId: string, examId: number): Promise<{ hasAccess: boolean; type: 'free' | 'premium' | null }> {
+    const [purchase] = await db
+      .select()
+      .from(purchases)
+      .where(
+        and(
+          eq(purchases.userId, userId),
+          eq(purchases.examId, examId),
+          eq(purchases.status, "completed")
+        )
+      );
+    
+    if (!purchase) {
+      return { hasAccess: false, type: null };
+    }
+    
+    return { 
+      hasAccess: true, 
+      type: purchase.type as 'free' | 'premium' 
+    };
+  }
+
+  async enrollUserForFree(userId: string, examId: number): Promise<Purchase> {
+    const [purchase] = await db
+      .insert(purchases)
+      .values({
+        userId,
+        examId,
+        type: 'free',
+        amount: '0',
+        status: 'completed',
+      })
+      .returning();
+    return purchase;
   }
 
   // Attempt operations

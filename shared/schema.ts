@@ -81,7 +81,8 @@ export const purchases = pgTable("purchases", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").notNull().references(() => users.id),
   examId: integer("exam_id").notNull().references(() => exams.id),
-  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  type: varchar("type").notNull(), // 'free' or 'premium'
+  amount: decimal("amount", { precision: 10, scale: 2 }).default("0"),
   stripePaymentId: varchar("stripe_payment_id"),
   status: varchar("status").default("completed"),
   createdAt: timestamp("created_at").defaultNow(),

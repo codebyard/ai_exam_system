@@ -117,6 +117,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Free enrollment route
+  app.post('/api/exams/:examId/enroll-free', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const examId = parseInt(req.params.examId);
+      
+      // Check if user already has access
+      const access = await storage.getUserExamAccess(userId, examId);
+      if (access.hasAccess) {
+        return res.json({ message: "Already enrolled", purchase: access });
+      }
+      
+      const purchase = await storage.enrollUserForFree(userId, examId);
+      res.json(purchase);
+    } catch (error) {
+      console.error("Error enrolling user for free:", error);
+      res.status(500).json({ message: "Failed to enroll for free access" });
+    }
+  });
+
+  // Get user's exam access status
+  app.get('/api/exams/:examId/access', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const examId = parseInt(req.params.examId);
+      
+      const access = await storage.getUserExamAccess(userId, examId);
+      res.json(access);
+    } catch (error) {
+      console.error("Error checking exam access:", error);
+      res.status(500).json({ message: "Failed to check access" });
+    }
+  });
+
   app.get('/api/user/attempts', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
