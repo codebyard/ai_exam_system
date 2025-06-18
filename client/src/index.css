@@ -99,11 +99,11 @@
   }
 
   .question-status-answered {
-    @apply bg-success text-success-foreground border-success;
+    @apply bg-green-500 text-white border-green-500;
   }
 
   .question-status-marked {
-    @apply bg-warning text-warning-foreground border-warning;
+    @apply bg-yellow-500 text-white border-yellow-500;
   }
 
   .question-status-answered-marked {
@@ -111,15 +111,15 @@
   }
 
   .timer-normal {
-    @apply text-success;
+    @apply text-green-600;
   }
 
   .timer-warning {
-    @apply text-warning;
+    @apply text-yellow-600;
   }
 
   .timer-danger {
-    @apply text-destructive;
+    @apply text-red-600;
   }
 }
 
