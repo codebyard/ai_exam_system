@@ -14,12 +14,16 @@ import Analysis from "@/pages/analysis";
 import DoubtClearing from "@/pages/doubt-clearing";
 import ReviewAttempt from "@/pages/review-attempt";
 import NotFound from "@/pages/not-found";
+import Login from "@/pages/login";
+import Signup from "@/pages/signup";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
 
   return (
     <Switch>
+      <Route path="/login" component={Login} />
+      <Route path="/signup" component={Signup} />
       {isLoading || !isAuthenticated ? (
         <Route path="/" component={Landing} />
       ) : (

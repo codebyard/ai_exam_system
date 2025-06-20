@@ -161,11 +161,11 @@ export default function Landing() {
               </Button>
               <Button 
                 variant="ghost" 
-                onClick={() => window.location.href = '/api/login'}
+                onClick={() => window.location.href = '/login'}
               >
                 Login
               </Button>
-              <Button onClick={() => window.location.href = '/api/login'}>
+              <Button onClick={() => window.location.href = '/signup'}>
                 Sign Up
               </Button>
             </div>
@@ -190,7 +190,7 @@ export default function Landing() {
                 <Button 
                   size="lg" 
                   className="flex items-center space-x-2"
-                  onClick={() => window.location.href = '/api/login'}
+                  onClick={() => window.location.href = '/signup'}
                 >
                   <Play className="w-5 h-5" />
                   <span>Start Practicing Now</span>
@@ -198,7 +198,7 @@ export default function Landing() {
                 <Button 
                   variant="outline" 
                   size="lg"
-                  onClick={() => window.location.href = '/api/login'}
+                  onClick={() => window.location.href = '/login'}
                 >
                   Login
                 </Button>
@@ -265,7 +265,7 @@ export default function Landing() {
             <Button 
               variant="outline" 
               size="lg"
-              onClick={() => window.location.href = '/api/login'}
+              onClick={() => window.location.href = '/login'}
             >
               View All 20+ Exams
             </Button>
@@ -322,7 +322,7 @@ export default function Landing() {
               <PricingCard
                 key={index}
                 plan={plan}
-                onSelect={() => window.location.href = '/api/login'}
+                onSelect={() => window.location.href = '/signup'}
               />
             ))}
           </div>

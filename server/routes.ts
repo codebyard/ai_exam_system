@@ -1,13 +1,16 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { isAuthenticated } from "./clerkAuth";
 import { seedDatabase } from "./seed";
 import { insertPurchaseSchema, insertAttemptSchema } from "@shared/schema";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+
+const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Auth middleware
-  await setupAuth(app);
+  // No more setupAuth needed
 
   // Check if database needs seeding and seed if empty
   const existingExams = await storage.getAllExams();
@@ -19,7 +22,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       res.json(user);
     } catch (error) {
@@ -93,7 +96,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Protected routes
   app.get('/api/user/purchases', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const purchases = await storage.getUserPurchases(userId);
       res.json(purchases);
     } catch (error) {
@@ -104,7 +107,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/purchases', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const purchaseData = insertPurchaseSchema.parse({
         ...req.body,
         userId
@@ -120,7 +123,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Free enrollment route
   app.post('/api/exams/:examId/enroll-free', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const examId = parseInt(req.params.examId);
       
       // Check if user already has access
@@ -140,7 +143,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get user's exam access status
   app.get('/api/exams/:examId/access', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const examId = parseInt(req.params.examId);
       
       const access = await storage.getUserExamAccess(userId, examId);
@@ -153,7 +156,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/user/attempts', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const attempts = await storage.getUserAttempts(userId);
       res.json(attempts);
     } catch (error) {
@@ -164,7 +167,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/attempts', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const attemptData = insertAttemptSchema.parse({
         ...req.body,
         userId
@@ -186,7 +189,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Check if user owns this attempt
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       if (attempt.userId !== userId) {
         return res.status(403).json({ message: "Access denied" });
       }
@@ -201,7 +204,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch('/api/attempts/:id', isAuthenticated, async (req: any, res) => {
     try {
       const attemptId = parseInt(req.params.id);
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       
       // Check if user owns this attempt
       const attempt = await storage.getAttemptById(attemptId);
@@ -221,12 +224,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/exams/:id/access', isAuthenticated, async (req: any, res) => {
     try {
       const examId = parseInt(req.params.id);
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const hasPurchased = await storage.hasUserPurchased(userId, examId);
       res.json({ hasAccess: hasPurchased });
     } catch (error) {
       console.error("Error checking access:", error);
       res.status(500).json({ message: "Failed to check access" });
+    }
+  });
+
+  // Register route
+  app.post('/api/auth/register', async (req, res) => {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and password are required" });
+    }
+    try {
+      // Check if user already exists
+      const existingUser = await storage.getUser(email);
+      if (existingUser) {
+        return res.status(409).json({ message: "User already exists" });
+      }
+      const passwordHash = await bcrypt.hash(password, 10);
+      const user = await storage.upsertUser({
+        id: email, // Use email as id for simplicity
+        email,
+        passwordHash,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      // Issue JWT
+      const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: "7d" });
+      res.json({ token, user: { id: user.id, email: user.email } });
+    } catch (error) {
+      console.error("Error registering user:", error);
+      res.status(500).json({ message: "Failed to register user" });
+    }
+  });
+
+  // Login route
+  app.post('/api/auth/login', async (req, res) => {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and password are required" });
+    }
+    try {
+      const user = await storage.getUser(email);
+      if (!user || !user.passwordHash) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+      const valid = await bcrypt.compare(password, user.passwordHash);
+      if (!valid) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+      // Issue JWT
+      const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: "7d" });
+      res.json({ token, user: { id: user.id, email: user.email } });
+    } catch (error) {
+      console.error("Error logging in:", error);
+      res.status(500).json({ message: "Failed to login" });
     }
   });
 

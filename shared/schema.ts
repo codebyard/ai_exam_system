@@ -1,104 +1,104 @@
 import {
-  pgTable,
-  text,
+  mysqlTable,
   varchar,
-  timestamp,
-  jsonb,
-  index,
-  serial,
-  integer,
+  text,
+  int,
   boolean,
   decimal,
-} from "drizzle-orm/pg-core";
+  json,
+  timestamp,
+  index,
+} from "drizzle-orm/mysql-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
 
 // Session storage table (mandatory for Replit Auth)
-export const sessions = pgTable(
+export const sessions = mysqlTable(
   "sessions",
   {
-    sid: varchar("sid").primaryKey(),
-    sess: jsonb("sess").notNull(),
+    sid: varchar("sid", { length: 255 }).primaryKey(),
+    sess: json("sess").notNull(),
     expire: timestamp("expire").notNull(),
   },
   (table) => [index("IDX_session_expire").on(table.expire)],
 );
 
 // User storage table (mandatory for Replit Auth)
-export const users = pgTable("users", {
-  id: varchar("id").primaryKey().notNull(),
-  email: varchar("email").unique(),
-  firstName: varchar("first_name"),
-  lastName: varchar("last_name"),
-  profileImageUrl: varchar("profile_image_url"),
+export const users = mysqlTable("users", {
+  id: varchar("id", { length: 255 }).primaryKey().notNull(),
+  email: varchar("email", { length: 255 }).unique(),
+  firstName: varchar("first_name", { length: 255 }),
+  lastName: varchar("last_name", { length: 255 }),
+  profileImageUrl: varchar("profile_image_url", { length: 255 }),
+  passwordHash: varchar("password_hash", { length: 255 }), // For local auth
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Exams table
-export const exams = pgTable("exams", {
-  id: serial("id").primaryKey(),
-  name: varchar("name").notNull(),
+export const exams = mysqlTable("exams", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
   description: text("description"),
-  icon: varchar("icon"),
-  category: varchar("category"),
+  icon: varchar("icon", { length: 255 }),
+  category: varchar("category", { length: 255 }),
   isPopular: boolean("is_popular").default(false),
-  totalQuestions: integer("total_questions").default(0),
-  yearsAvailable: integer("years_available").default(0),
+  totalQuestions: int("total_questions").default(0),
+  yearsAvailable: int("years_available").default(0),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
 // Papers table (year-wise papers for each exam)
-export const papers = pgTable("papers", {
-  id: serial("id").primaryKey(),
-  examId: integer("exam_id").notNull().references(() => exams.id),
-  year: integer("year").notNull(),
-  title: varchar("title").notNull(),
-  totalQuestions: integer("total_questions").default(0),
-  duration: integer("duration"), // in minutes
+export const papers = mysqlTable("papers", {
+  id: int("id").autoincrement().primaryKey(),
+  examId: int("exam_id").notNull().references(() => exams.id),
+  year: int("year").notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  totalQuestions: int("total_questions").default(0),
+  duration: int("duration"), // in minutes
   isFree: boolean("is_free").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
 // Questions table
-export const questions = pgTable("questions", {
-  id: serial("id").primaryKey(),
-  paperId: integer("paper_id").notNull().references(() => papers.id),
-  questionNumber: integer("question_number").notNull(),
+export const questions = mysqlTable("questions", {
+  id: int("id").autoincrement().primaryKey(),
+  paperId: int("paper_id").notNull().references(() => papers.id),
+  questionNumber: int("question_number").notNull(),
   questionText: text("question_text").notNull(),
-  options: jsonb("options").notNull(), // Array of options
-  correctAnswer: varchar("correct_answer").notNull(),
+  options: json("options").notNull(), // Array of options
+  correctAnswer: varchar("correct_answer", { length: 255 }).notNull(),
   explanation: text("explanation"),
-  subject: varchar("subject"),
-  topic: varchar("topic"),
-  difficulty: varchar("difficulty"),
+  subject: varchar("subject", { length: 255 }),
+  topic: varchar("topic", { length: 255 }),
+  difficulty: varchar("difficulty", { length: 255 }),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
 // User purchases table
-export const purchases = pgTable("purchases", {
-  id: serial("id").primaryKey(),
-  userId: varchar("user_id").notNull().references(() => users.id),
-  examId: integer("exam_id").notNull().references(() => exams.id),
-  type: varchar("type").notNull(), // 'free' or 'premium'
+export const purchases = mysqlTable("purchases", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: varchar("user_id", { length: 255 }).notNull().references(() => users.id),
+  examId: int("exam_id").notNull().references(() => exams.id),
+  type: varchar("type", { length: 255 }).notNull(), // 'free' or 'premium'
   amount: decimal("amount", { precision: 10, scale: 2 }).default("0"),
-  stripePaymentId: varchar("stripe_payment_id"),
-  status: varchar("status").default("completed"),
+  stripePaymentId: varchar("stripe_payment_id", { length: 255 }),
+  status: varchar("status", { length: 255 }).default("completed"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
 // User attempts table
-export const attempts = pgTable("attempts", {
-  id: serial("id").primaryKey(),
-  userId: varchar("user_id").notNull().references(() => users.id),
-  paperId: integer("paper_id").notNull().references(() => papers.id),
-  mode: varchar("mode").notNull(), // 'exam', 'browse', 'instant'
-  responses: jsonb("responses").notNull(), // User responses
-  score: integer("score"),
-  totalQuestions: integer("total_questions"),
-  timeSpent: integer("time_spent"), // in seconds
-  status: varchar("status").default("completed"),
+export const attempts = mysqlTable("attempts", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: varchar("user_id", { length: 255 }).notNull().references(() => users.id),
+  paperId: int("paper_id").notNull().references(() => papers.id),
+  mode: varchar("mode", { length: 255 }).notNull(), // 'exam', 'browse', 'instant'
+  responses: json("responses").notNull(), // User responses
+  score: int("score"),
+  totalQuestions: int("total_questions"),
+  timeSpent: int("time_spent"), // in seconds
+  status: varchar("status", { length: 255 }).default("completed"),
   startedAt: timestamp("started_at").defaultNow(),
   completedAt: timestamp("completed_at"),
 });

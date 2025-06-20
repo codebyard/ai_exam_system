@@ -200,36 +200,26 @@ async function seedDatabase() {
     console.log("Starting database seeding...");
     
     // Insert exams and get their IDs
-    const insertedExams = await db.insert(exams).values(sampleExams).onConflictDoNothing().returning();
+    await db.insert(exams).values(sampleExams);
     console.log("✓ Exams seeded");
     
-    // If no exams were inserted (already exist), fetch existing ones
-    let examIds: number[] = [];
-    if (insertedExams.length > 0) {
-      examIds = insertedExams.map(exam => exam.id);
-    } else {
-      const existingExams = await db.select().from(exams).limit(4);
-      examIds = existingExams.map(exam => exam.id);
-    }
+    // Fetch exams (since .returning() is not supported in MySQL)
+    const existingExams = await db.select().from(exams).limit(4);
+    let examIds: number[] = existingExams.map((exam: any) => exam.id);
     
     // Insert papers with proper exam IDs
     const papersData = createSamplePapers(examIds);
-    const insertedPapers = await db.insert(papers).values(papersData).onConflictDoNothing().returning();
+    await db.insert(papers).values(papersData);
     console.log("✓ Papers seeded");
     
-    // Get paper IDs for questions
-    let paperIds: number[] = [];
-    if (insertedPapers.length > 0) {
-      paperIds = insertedPapers.map(paper => paper.id);
-    } else {
-      const existingPapers = await db.select().from(papers).limit(10);
-      paperIds = existingPapers.map(paper => paper.id);
-    }
+    // Fetch papers (since .returning() is not supported in MySQL)
+    const existingPapers = await db.select().from(papers).limit(10);
+    let paperIds: number[] = existingPapers.map((paper: any) => paper.id);
     
     // Insert questions with proper paper IDs
     if (paperIds.length > 0) {
       const questionsData = createSampleQuestions(paperIds);
-      await db.insert(questions).values(questionsData).onConflictDoNothing();
+      await db.insert(questions).values(questionsData);
       console.log("✓ Questions seeded");
     }
     
