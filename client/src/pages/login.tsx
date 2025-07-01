@@ -4,23 +4,40 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Link } from 'wouter';
 import { Eye, EyeOff, Github, Mail, User, Shield, LogIn } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { useLocation } from 'wouter';
+import { GoogleLogin, GoogleOAuthProvider } from '@react-oauth/google';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const { toast } = useToast();
+  const [, setLocation] = useLocation();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    // TODO: Implement login logic
-    setTimeout(() => setLoading(false), 1000);
-  };
-
-  const handleSocialLogin = (provider: string) => {
-    // TODO: Implement social login logic
-    alert(`Social login with ${provider} coming soon!`);
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || 'Login failed');
+      }
+      const data = await res.json();
+      localStorage.setItem('token', data.token);
+      toast({ title: 'Login successful!', description: 'Welcome back!' });
+      window.location.href = '/dashboard';
+    } catch (err: any) {
+      toast({ title: 'Login failed', description: err.message, variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -32,15 +49,39 @@ export default function Login() {
           </h1>
           <p className="text-muted-foreground mb-6">Welcome back! Please enter your details.</p>
         </div>
-        {/* Social Login Buttons */}
-        <div className="flex flex-col gap-3">
-          <Button variant="outline" className="w-full flex items-center gap-2 justify-center" type="button" onClick={() => handleSocialLogin('Google')}>
-            <User className="w-5 h-5" /> Continue with Google
-          </Button>
-          <Button variant="outline" className="w-full flex items-center gap-2 justify-center" type="button" onClick={() => handleSocialLogin('GitHub')}>
-            <Github className="w-5 h-5" /> Continue with GitHub
-          </Button>
-        </div>
+        {/* Google Login Button */}
+        <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID'}>
+          <GoogleLogin
+            onSuccess={async (credentialResponse) => {
+              if (!credentialResponse.credential) return;
+              setLoading(true);
+              try {
+                const res = await fetch('/api/auth/google', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ credential: credentialResponse.credential }),
+                });
+                if (!res.ok) {
+                  const data = await res.json().catch(() => ({}));
+                  throw new Error(data.message || 'Google login failed');
+                }
+                const data = await res.json();
+                localStorage.setItem('token', data.token);
+                toast({ title: 'Login successful!', description: 'Welcome back!' });
+                window.location.href = '/dashboard';
+              } catch (err: any) {
+                toast({ title: 'Google login failed', description: err.message, variant: 'destructive' });
+              } finally {
+                setLoading(false);
+              }
+            }}
+            onError={() => toast({ title: 'Google login failed', description: 'Google authentication failed', variant: 'destructive' })}
+            width="100%"
+            text="signin_with"
+            shape="rectangular"
+            theme="outline"
+          />
+        </GoogleOAuthProvider>
         {/* Divider */}
         <div className="flex items-center my-2">
           <div className="flex-1 h-px bg-muted" />

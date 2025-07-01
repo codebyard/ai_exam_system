@@ -92,7 +92,7 @@ export const purchases = mysqlTable("purchases", {
 export const attempts = mysqlTable("attempts", {
   id: int("id").autoincrement().primaryKey(),
   userId: varchar("user_id", { length: 255 }).notNull().references(() => users.id),
-  paperId: int("paper_id").notNull().references(() => papers.id),
+  paperId: int("paper_id").references(() => papers.id),
   mode: varchar("mode", { length: 255 }).notNull(), // 'exam', 'browse', 'instant'
   responses: json("responses").notNull(), // User responses
   score: int("score"),

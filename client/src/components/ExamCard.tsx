@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { BookOpen, Clock, Star, Lock, CheckCircle, Crown } from "lucide-react";
+import { BookOpen, Clock, Star, Lock, Crown } from "lucide-react";
 import { Link } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -12,24 +12,16 @@ interface ExamCardProps {
   exam: Exam;
   userAccess?: { hasAccess: boolean; type: 'free' | 'premium' | null };
   showActions?: boolean;
+  showAccessBadge?: boolean;
 }
 
-export default function ExamCard({ exam, userAccess, showActions = true }: ExamCardProps) {
+export default function ExamCard({ exam, userAccess, showActions = true, showAccessBadge = false }: ExamCardProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const enrollFreeMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch(`/api/exams/${exam.id}/enroll-free`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      if (!response.ok) {
-        throw new Error('Failed to enroll for free access');
-      }
+      const response = await apiRequest('POST', `/api/exams/${exam.id}/enroll-free`);
       return response.json();
     },
     onSuccess: () => {
@@ -52,21 +44,11 @@ export default function ExamCard({ exam, userAccess, showActions = true }: ExamC
 
   const purchaseMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch('/api/purchases', {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          examId: exam.id,
-          type: 'premium',
-          amount: '99.00',
-        }),
+      const response = await apiRequest('/api/purchases', 'POST', {
+        examId: exam.id,
+        type: 'premium',
+        amount: '99.00',
       });
-      if (!response.ok) {
-        throw new Error('Failed to purchase full access');
-      }
       return response.json();
     },
     onSuccess: () => {
@@ -95,33 +77,13 @@ export default function ExamCard({ exam, userAccess, showActions = true }: ExamC
     purchaseMutation.mutate();
   };
 
-  const getAccessBadge = () => {
-    if (!userAccess?.hasAccess) return null;
-    
-    if (userAccess.type === 'premium') {
-      return (
-        <div className="flex items-center gap-1 text-purple-600 text-sm">
-          <Crown className="h-4 w-4" />
-          <span>Premium Access</span>
-        </div>
-      );
-    }
-    
-    return (
-      <div className="flex items-center gap-1 text-green-600 text-sm">
-        <CheckCircle className="h-4 w-4" />
-        <span>Free Access</span>
-      </div>
-    );
-  };
-
   const renderActionButtons = () => {
     if (!showActions) return null;
 
     // User has premium access
     if (userAccess?.hasAccess && userAccess.type === 'premium') {
       return (
-        <Link href={`/exam-details/${exam.id}`}>
+        <Link href={`/exams/${exam.id}`}>
           <Button className="w-full bg-purple-600 hover:bg-purple-700">
             <Crown className="h-4 w-4 mr-2" />
             Access All Papers
@@ -134,7 +96,7 @@ export default function ExamCard({ exam, userAccess, showActions = true }: ExamC
     if (userAccess?.hasAccess && userAccess.type === 'free') {
       return (
         <div className="space-y-2">
-          <Link href={`/exam-details/${exam.id}`}>
+          <Link href={`/exams/${exam.id}`}>
             <Button variant="outline" className="w-full">
               <BookOpen className="h-4 w-4 mr-2" />
               View Free Papers
@@ -177,9 +139,9 @@ export default function ExamCard({ exam, userAccess, showActions = true }: ExamC
   };
 
   return (
-    <Card className="hover:shadow-lg transition-all duration-300 group relative overflow-hidden">
+    <Card className="hover:shadow-lg hover:shadow-primary/10 hover:border-primary/20 transition-all duration-300 group relative overflow-hidden">
       {exam.isPopular && (
-        <div className="absolute top-3 right-3 z-10">
+        <div className="absolute top-3 left-3 z-10">
           <Badge className="bg-yellow-500 text-white">
             <Star className="h-3 w-3 mr-1" />
             Popular
@@ -187,7 +149,7 @@ export default function ExamCard({ exam, userAccess, showActions = true }: ExamC
         </div>
       )}
       
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-primary/2 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
       
       <CardHeader className="relative">
         <div className="flex items-start justify-between">
@@ -202,7 +164,7 @@ export default function ExamCard({ exam, userAccess, showActions = true }: ExamC
       </CardHeader>
       
       <CardContent className="relative space-y-4">
-        <div className="flex items-center gap-4 text-sm text-gray-600">
+        <div className="flex items-center gap-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-1">
             <BookOpen className="h-4 w-4" />
             <span>{exam.totalQuestions} Questions</span>
@@ -217,17 +179,16 @@ export default function ExamCard({ exam, userAccess, showActions = true }: ExamC
           <Badge variant="secondary" className="text-xs">
             {exam.category}
           </Badge>
-          {getAccessBadge()}
         </div>
         
         <div className="pt-2 border-t">
           <div className="flex items-center justify-between mb-3 text-sm">
             <div className="text-center">
-              <div className="text-green-600 font-medium">Free Access</div>
-              <div className="text-gray-500">Recent 2 years</div>
+              <div className="text-success font-medium">Free Access</div>
+              <div className="text-muted-foreground">Recent 2 years</div>
             </div>
             <div className="text-center">
-              <div className="text-purple-600 font-medium">Premium Access</div>
+              <div className="text-purple-600 dark:text-purple-400 font-medium">Premium Access</div>
               <div className="text-lg font-bold">₹99</div>
             </div>
           </div>
@@ -235,8 +196,8 @@ export default function ExamCard({ exam, userAccess, showActions = true }: ExamC
           {renderActionButtons()}
         </div>
         
-        <Link href={`/exam-details/${exam.id}`}>
-          <Button variant="ghost" className="w-full mt-2 group-hover:bg-blue-50">
+        <Link href={`/exams/${exam.id}`}>
+          <Button variant="ghost" className="w-full mt-2 group-hover:bg-primary/10 group-hover:text-primary transition-colors">
             View Details
           </Button>
         </Link>

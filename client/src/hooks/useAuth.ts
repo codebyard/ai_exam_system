@@ -1,8 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
+import { getQueryFn, queryClient } from '@/lib/queryClient';
 
 export function useAuth() {
   const { data: user, isLoading } = useQuery({
     queryKey: ["/api/auth/user"],
+    queryFn: getQueryFn({ on401: "returnNull" }),
     retry: false,
   });
 
@@ -10,5 +12,6 @@ export function useAuth() {
     user,
     isLoading,
     isAuthenticated: !!user,
+    refresh: () => queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] }),
   };
 }

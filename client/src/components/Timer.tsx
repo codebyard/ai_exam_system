@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 
 interface TimerProps {
-  initialTime: number; // in seconds
+  timeRemaining: number; // in seconds
   onTimeUp?: () => void;
   isRunning?: boolean;
   onTogglePause?: () => void;
@@ -13,35 +13,17 @@ interface TimerProps {
 }
 
 export default function Timer({
-  initialTime,
+  timeRemaining,
   onTimeUp,
   isRunning = true,
   onTogglePause,
   showControls = false,
   size = 'md',
 }: TimerProps) {
-  const [timeRemaining, setTimeRemaining] = useState(initialTime);
   const [isPaused, setIsPaused] = useState(!isRunning);
 
-  useEffect(() => {
-    setTimeRemaining(initialTime);
-  }, [initialTime]);
-
-  useEffect(() => {
-    if (!isRunning || isPaused || timeRemaining <= 0) return;
-
-    const interval = setInterval(() => {
-      setTimeRemaining((prev) => {
-        if (prev <= 1) {
-          onTimeUp?.();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [isRunning, isPaused, timeRemaining, onTimeUp]);
+  // Calculate initial time for color coding (use a reasonable default if not provided)
+  const initialTime = Math.max(timeRemaining, 60); // At least 1 minute for color calculation
 
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);

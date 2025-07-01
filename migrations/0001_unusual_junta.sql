@@ -1,0 +1,1 @@
+ALTER TABLE `attempts` MODIFY COLUMN `paper_id` int;

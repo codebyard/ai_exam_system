@@ -106,6 +106,14 @@ export default function QuestionPalette({
     unanswered: questions.filter(q => !userResponses[q.id.toString()]).length,
   } : null;
 
+  function getPaletteColor(state: { visited?: boolean; isAnswered?: boolean; isMarkedForReview?: boolean }) {
+    if (!state.visited) return 'bg-gray-300 border-gray-400'; // Not Visited
+    if (state.isMarkedForReview && state.isAnswered) return 'bg-blue-500 border-blue-700 text-white'; // Answered & Marked for Review
+    if (state.isMarkedForReview) return 'bg-purple-500 border-purple-700 text-white'; // Marked for Review
+    if (state.isAnswered) return 'bg-green-500 border-green-700 text-white'; // Answered
+    return 'bg-red-500 border-red-700 text-white'; // Not Answered
+  }
+
   return (
     <Card className="h-full">
       <CardHeader>
@@ -208,34 +216,30 @@ export default function QuestionPalette({
         {/* Question Grid */}
         <div className="space-y-3">
           <h4 className="font-medium text-sm">Questions:</h4>
-          <div className="grid grid-cols-5 gap-2">
-            {questions.map((question, index) => {
-              const status = getQuestionStatus(question, index);
-              const isCurrent = index === currentQuestionIndex;
-              const statusColor = getStatusColor(status, isCurrent);
-              const statusIcon = getStatusIcon(status);
-
+          <div className="flex flex-wrap gap-2 justify-center mt-4">
+            {questions.map((q, idx) => {
+              const state = questionStates[q.id] || { visited: false, isAnswered: false, isMarkedForReview: false };
               return (
-                <Button
-                  key={question.id}
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onQuestionSelect(index)}
-                  className={cn(
-                    "w-full h-10 text-xs font-medium border-2 relative",
-                    statusColor
-                  )}
+                <button
+                  key={q.id}
+                  className={`w-8 h-8 rounded-full border-2 font-bold text-sm focus:outline-none ${getPaletteColor(state)} ${idx === currentQuestionIndex ? 'ring-2 ring-primary' : ''}`}
+                  onClick={() => onQuestionSelect(idx)}
+                  aria-label={`Go to question ${idx + 1}`}
                 >
-                  <span>{index + 1}</span>
-                  {statusIcon && (
-                    <div className="absolute -top-1 -right-1">
-                      {statusIcon}
-                    </div>
-                  )}
-                </Button>
+                  {idx + 1}
+                </button>
               );
             })}
           </div>
+        </div>
+
+        {/* Palette Legend */}
+        <div className="flex flex-wrap gap-4 justify-center mt-4 text-xs">
+          <div className="flex items-center gap-1"><span className="w-4 h-4 rounded-full bg-gray-300 border border-gray-400 inline-block"></span> Not Visited</div>
+          <div className="flex items-center gap-1"><span className="w-4 h-4 rounded-full bg-red-500 border border-red-700 inline-block"></span> Not Answered</div>
+          <div className="flex items-center gap-1"><span className="w-4 h-4 rounded-full bg-green-500 border border-green-700 inline-block"></span> Answered</div>
+          <div className="flex items-center gap-1"><span className="w-4 h-4 rounded-full bg-purple-500 border border-purple-700 inline-block"></span> Marked for Review</div>
+          <div className="flex items-center gap-1"><span className="w-4 h-4 rounded-full bg-blue-500 border border-blue-700 inline-block"></span> Answered & Marked</div>
         </div>
 
         {/* Navigation Shortcuts */}

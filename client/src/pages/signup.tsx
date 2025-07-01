@@ -4,6 +4,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Link } from 'wouter';
 import { Eye, EyeOff, Github, LogIn, User } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { useLocation } from 'wouter';
+import { GoogleLogin, GoogleOAuthProvider } from '@react-oauth/google';
 
 export default function Signup() {
   const [name, setName] = useState('');
@@ -11,17 +14,31 @@ export default function Signup() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const { toast } = useToast();
+  const [, setLocation] = useLocation();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    // TODO: Implement signup logic
-    setTimeout(() => setLoading(false), 1000);
-  };
-
-  const handleSocialSignup = (provider: string) => {
-    // TODO: Implement social signup logic
-    alert(`Social signup with ${provider} coming soon!`);
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || 'Signup failed');
+      }
+      const data = await res.json();
+      localStorage.setItem('token', data.token);
+      toast({ title: 'Signup successful!', description: 'Welcome to AI Exam System.' });
+      window.location.href = '/dashboard';
+    } catch (err: any) {
+      toast({ title: 'Signup failed', description: err.message, variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -31,15 +48,39 @@ export default function Signup() {
           <h1 className="text-3xl font-bold text-foreground mb-2">Create your account</h1>
           <p className="text-muted-foreground mb-6">Start your exam journey in seconds.</p>
         </div>
-        {/* Social Signup Buttons */}
-        <div className="flex flex-col gap-3">
-          <Button variant="outline" className="w-full flex items-center gap-2 justify-center" type="button" onClick={() => handleSocialSignup('Google')}>
-            <User className="w-5 h-5" /> Continue with Google
-          </Button>
-          <Button variant="outline" className="w-full flex items-center gap-2 justify-center" type="button" onClick={() => handleSocialSignup('GitHub')}>
-            <Github className="w-5 h-5" /> Continue with GitHub
-          </Button>
-        </div>
+        {/* Google Signup Button */}
+        <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID'}>
+          <GoogleLogin
+            onSuccess={async (credentialResponse) => {
+              if (!credentialResponse.credential) return;
+              setLoading(true);
+              try {
+                const res = await fetch('/api/auth/google', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ credential: credentialResponse.credential }),
+                });
+                if (!res.ok) {
+                  const data = await res.json().catch(() => ({}));
+                  throw new Error(data.message || 'Google signup failed');
+                }
+                const data = await res.json();
+                localStorage.setItem('token', data.token);
+                toast({ title: 'Signup successful!', description: 'Welcome to AI Exam System.' });
+                window.location.href = '/dashboard';
+              } catch (err: any) {
+                toast({ title: 'Google signup failed', description: err.message, variant: 'destructive' });
+              } finally {
+                setLoading(false);
+              }
+            }}
+            onError={() => toast({ title: 'Google signup failed', description: 'Google authentication failed', variant: 'destructive' })}
+            width="100%"
+            text="signup_with"
+            shape="rectangular"
+            theme="outline"
+          />
+        </GoogleOAuthProvider>
         {/* Divider */}
         <div className="flex items-center my-2">
           <div className="flex-1 h-px bg-muted" />

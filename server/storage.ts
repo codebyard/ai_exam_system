@@ -57,17 +57,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   async upsertUser(userData: UpsertUser): Promise<User> {
-    const [user] = await db
+    await db
       .insert(users)
       .values(userData)
-      .onConflictDoUpdate({
-        target: users.id,
+      .onDuplicateKeyUpdate({
         set: {
           ...userData,
           updatedAt: new Date(),
         },
-      })
-      .returning();
+      });
+    const [user] = await db.select().from(users).where(eq(users.id, userData.id));
     return user;
   }
 
@@ -113,10 +112,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createPurchase(purchase: InsertPurchase): Promise<Purchase> {
-    const [newPurchase] = await db
+    const result = await db
       .insert(purchases)
-      .values(purchase)
-      .returning();
+      .values(purchase);
+    const newPurchaseId = result[0].insertId;
+    const [newPurchase] = await db
+      .select()
+      .from(purchases)
+      .where(eq(purchases.id, newPurchaseId));
     return newPurchase;
   }
 
@@ -157,7 +160,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async enrollUserForFree(userId: string, examId: number): Promise<Purchase> {
-    const [purchase] = await db
+    const result = await db
       .insert(purchases)
       .values({
         userId,
@@ -165,8 +168,12 @@ export class DatabaseStorage implements IStorage {
         type: 'free',
         amount: '0',
         status: 'completed',
-      })
-      .returning();
+      });
+    const newPurchaseId = result[0].insertId;
+    const [purchase] = await db
+      .select()
+      .from(purchases)
+      .where(eq(purchases.id, newPurchaseId));
     return purchase;
   }
 
@@ -180,10 +187,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createAttempt(attempt: InsertAttempt): Promise<Attempt> {
-    const [newAttempt] = await db
+    const result = await db
       .insert(attempts)
-      .values(attempt)
-      .returning();
+      .values(attempt);
+    const newAttemptId = result[0].insertId;
+    const [newAttempt] = await db
+      .select()
+      .from(attempts)
+      .where(eq(attempts.id, newAttemptId));
     return newAttempt;
   }
 
@@ -193,11 +204,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateAttempt(id: number, updates: Partial<Attempt>): Promise<Attempt> {
-    const [updatedAttempt] = await db
+    await db
       .update(attempts)
       .set(updates)
-      .where(eq(attempts.id, id))
-      .returning();
+      .where(eq(attempts.id, id));
+    const [updatedAttempt] = await db
+      .select()
+      .from(attempts)
+      .where(eq(attempts.id, id));
     return updatedAttempt;
   }
 }

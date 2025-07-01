@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { LoadingProvider } from "@/contexts/LoadingContext";
 import { useAuth } from "@/hooks/useAuth";
 import Landing from "@/pages/landing";
 import Dashboard from "@/pages/dashboard";
@@ -16,6 +17,7 @@ import ReviewAttempt from "@/pages/review-attempt";
 import NotFound from "@/pages/not-found";
 import Login from "@/pages/login";
 import Signup from "@/pages/signup";
+import BrowsePaper from "@/pages/browse-paper";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -35,6 +37,7 @@ function Router() {
           <Route path="/analysis" component={Analysis} />
           <Route path="/doubt-clearing" component={DoubtClearing} />
           <Route path="/review/:attemptId" component={ReviewAttempt} />
+          <Route path="/browse-paper/:paperId" component={BrowsePaper} />
         </>
       )}
       <Route component={NotFound} />
@@ -42,19 +45,19 @@ function Router() {
   );
 }
 
-function App() {
+export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <AuthProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Router />
-          </TooltipProvider>
+          <LoadingProvider>
+            <TooltipProvider>
+              <Router />
+              <Toaster />
+            </TooltipProvider>
+          </LoadingProvider>
         </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );
 }
-
-export default App;

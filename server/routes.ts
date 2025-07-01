@@ -6,8 +6,11 @@ import { seedDatabase } from "./seed";
 import { insertPurchaseSchema, insertAttemptSchema } from "@shared/schema";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { OAuth2Client } from 'google-auth-library';
 
 const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret";
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID';
+const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // No more setupAuth needed
@@ -70,7 +73,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Paper routes
   app.get('/api/papers/:id', async (req, res) => {
     try {
-      const paperId = parseInt(req.params.id);
+      const paperId = parseInt(req.params.id, 10);
+      if (isNaN(paperId)) {
+        return res.status(400).json({ message: "Invalid paper ID." });
+      }
       const paper = await storage.getPaperById(paperId);
       if (!paper) {
         return res.status(404).json({ message: "Paper not found" });
@@ -84,7 +90,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/papers/:id/questions', async (req, res) => {
     try {
-      const paperId = parseInt(req.params.id);
+      const paperId = parseInt(req.params.id, 10);
+      if (isNaN(paperId)) {
+        // This can happen for instant tests if the client makes a mistake.
+        // Return an empty array as a safe fallback.
+        return res.json([]);
+      }
       const questions = await storage.getPaperQuestions(paperId);
       res.json(questions);
     } catch (error) {
@@ -168,11 +179,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/attempts', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.id;
-      const attemptData = insertAttemptSchema.parse({
+      
+      // Convert completedAt from string to Date if it exists
+      const attemptData = {
         ...req.body,
-        userId
-      });
-      const attempt = await storage.createAttempt(attemptData);
+        userId,
+        completedAt: req.body.completedAt ? new Date(req.body.completedAt) : undefined
+      };
+      
+      const validatedData = insertAttemptSchema.parse(attemptData);
+      const attempt = await storage.createAttempt(validatedData);
       res.json(attempt);
     } catch (error) {
       console.error("Error creating attempt:", error);
@@ -283,6 +299,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error logging in:", error);
       res.status(500).json({ message: "Failed to login" });
+    }
+  });
+
+  // Google OAuth login
+  app.post('/api/auth/google', async (req, res) => {
+    const { credential } = req.body;
+    if (!credential) {
+      return res.status(400).json({ message: 'Missing Google credential' });
+    }
+    try {
+      const ticket = await googleClient.verifyIdToken({
+        idToken: credential,
+        audience: GOOGLE_CLIENT_ID,
+      });
+      const payload = ticket.getPayload();
+      if (!payload || !payload.email) {
+        return res.status(401).json({ message: 'Invalid Google token' });
+      }
+      // Upsert user
+      const user = await storage.upsertUser({
+        id: payload.email,
+        email: payload.email,
+        firstName: payload.given_name,
+        lastName: payload.family_name,
+        profileImageUrl: payload.picture,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      // Issue JWT
+      const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
+      res.json({ token, user: { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, profileImageUrl: user.profileImageUrl } });
+    } catch (error) {
+      console.error('Google login error:', error);
+      res.status(401).json({ message: 'Google authentication failed' });
     }
   });
 
